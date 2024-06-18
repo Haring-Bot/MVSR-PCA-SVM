@@ -1,0 +1,3 @@
+/home/fhtw_user/MVSR/homework2.2/build/CMakeFiles/rebuild_cache.dir
+/home/fhtw_user/MVSR/homework2.2/build/CMakeFiles/edit_cache.dir
+/home/fhtw_user/MVSR/homework2.2/build/CMakeFiles/main.dir

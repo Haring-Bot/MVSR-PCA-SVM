@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/fhtw_user/MVSR/homework2.2/src/homework2.cpp
+iostream
+-
+fstream
+-
+unistd.h
+-
+opencv2/opencv.hpp
+/home/fhtw_user/MVSR/homework2.2/src/opencv2/opencv.hpp
+opencv2/plot.hpp
+/home/fhtw_user/MVSR/homework2.2/src/opencv2/plot.hpp
+
