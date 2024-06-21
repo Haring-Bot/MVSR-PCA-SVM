@@ -5,9 +5,9 @@
 #include "opencv2/plot.hpp"
 
 struct meanStdDev{
-    cv::Mat standardizedData;
-    cv::Scalar mean;
-    cv::Scalar stdDev;
+    cv::Mat standardizedData = cv::Mat();
+    std::vector<float> mean;
+    std::vector<float> stdDev;
 };
 
 class toolbox{
@@ -34,8 +34,9 @@ class toolbox{
         output.close();
         return outputPath;
     }
-    void printtoCSV(cv::Mat data){
-        std::cout << "saving Mat to debug.csv\n"; 
+    void printtoCSV(cv::Mat data, std::string name){
+        name = name + ".csv";
+        std::cout << "saving Mat to " << name << std::endl; 
         std::ofstream file("debug.csv");
 
         for (int i = 0; i < data.rows; ++i) {
@@ -49,6 +50,17 @@ class toolbox{
     }
 
     file.close();
+    }
+    void printMat(const cv::Mat& mat) {
+        for (int i = 0; i < mat.rows; ++i) {
+            for (int j = 0; j < mat.cols; ++j) {
+                std::cout << mat.at<float>(i, j); // Assuming the matrix contains float values
+                if (j < mat.cols - 1) {
+                    std::cout << ", "; // Add comma separator except for the last element in a row
+                }
+            }
+            std::cout << std::endl; // Add newline after each row
+        }
     }
 
 };
@@ -131,42 +143,62 @@ public:
 processor(){std::cout << "processor started" << std::endl;}
 
 meanStdDev standardize(cv::Mat data, meanStdDev prevMeanStdDev){
-    std::cout << "starting standardization" << std::endl;
-    cv::Scalar mean(0), stdDev(0);
-    for(int i = 0; i < data.cols; i++){
+    std::vector<float> meanVec(data.cols, -1.0f);
+    std::vector<float> stdDevVec(data.cols, -1.0f);
+    cv::Scalar newMean, newStdDev;
+    meanStdDev returnMsg;
+
+    if (!prevMeanStdDev.mean.empty() && !prevMeanStdDev.stdDev.empty()) {
+        meanVec = prevMeanStdDev.mean;
+        stdDevVec = prevMeanStdDev.stdDev;
+    }
+
+    for(int i = 1; i < data.cols; i++){
         cv::Mat curCol = data.col(i);
-        if(prevMeanStdDev.stdDev[0] == -1){
-            cv::meanStdDev(curCol, mean, stdDev);
-            //std::cout << mean << std::endl;
+
+        if(prevMeanStdDev.stdDev.empty()){
+            stdDevVec[i] = newStdDev[0];    //prov
+            cv::meanStdDev(curCol, newMean, newStdDev);
+            if(newStdDev[0] < 1e-6){
+                newStdDev[0] = 1e-6;
+            }
+            //std::cout << "newMean: " << newMean[0] << "  newStdDev: " << newStdDev[0] << std::endl;
+            meanVec[i] = newMean[0];
+            stdDevVec[i] = newStdDev[0];
+            //std::cout << i <<" newMean " << meanVec[411] << std::endl; 
+        std::cout << std::endl << meanVec.size() << std::endl << std::endl;
         }
         else{
-            mean = prevMeanStdDev.mean;
-            stdDev = prevMeanStdDev.stdDev;
+            //std::cout << "already predefined mean/stdDev}\n";
         }
-        curCol -= mean[0];
-        //cv::meanStdDev(curCol, mean, stdDev);
-        if(stdDev[0] < 1e-6){
-            stdDev[0] = 1e-6;
-        }
-
-        curCol = curCol / stdDev[0];
-        cv::meanStdDev(curCol, mean, stdDev);
-        std::cout << "mean: " << mean << "  stdDev: " << stdDev << "\n";
+        //calculate standardization
+        curCol = (curCol - meanVec[i]) / stdDevVec[i];
         data.col(i) = curCol;
     }
-    //std::cout << globalStdDev << std::endl;
-    prevMeanStdDev.standardizedData = data;
-    prevMeanStdDev.mean = mean;
-    prevMeanStdDev.stdDev = stdDev;
-
-    return prevMeanStdDev;
+    returnMsg.standardizedData = data;
+    returnMsg.mean = meanVec;
+    returnMsg.stdDev = stdDevVec;
+    //std::cout << "returnMsg has the size: " << meanVec.size() << std::endl;
+    // for(int i = 0; i < meanVec.size(); i++){
+    //     std::cout << meanVec[i] << std::endl;
+    // }
+    std::cout << "standardisation finished\n";
+    return returnMsg;
 }
-void isStandardized(cv::Mat data){
+void isStandardized(cv::Mat data, std::string name, bool advancedAnalysis){
+    int standardizedMean = 0, standardizedStdDev = 0, NOTstandardizedMean = 0, NOTstandardizedStdDev = 0;
     for(int i = 0; i < data.cols; i++){
-        cv::Mat mean, stdDev;
-        cv::meanStdDev(data, mean, stdDev);
-        std::cout << "the array currently has a mean of: " << mean << "  and a standard deviation of: " << stdDev << std::endl;
+        cv::Scalar mean, stdDev;
+        cv::meanStdDev(data.col(i), mean, stdDev);
+        //std::cout << "the array currently has a mean of: " << mean << "  and a standard deviation of: " << stdDev << std::endl;
+        (mean[0] < 1e-4) ? (standardizedMean++, 0) : (NOTstandardizedMean++, 1);
+        ((stdDev[0] < 1.1 && stdDev[0] > 0.9) || stdDev[0] == 0) ? (standardizedStdDev++, 0) : (NOTstandardizedStdDev++, 1);
+        if(advancedAnalysis){
+            std::cout << "Line" << i << ":  mean=" << mean[0] << "  stdDev=" << stdDev[0] << std::endl;
+        }
     }
+    std::cout << "after standardizing there are " << standardizedMean << "/" << data.cols << " lines with a standardized mean\n"
+    "and " << standardizedStdDev << "/" << data.cols << " lines with a standardized standard deviation in the " << name << " dataset\n\n";
 }
 
 cv::Mat eigenStuff(cv::Mat data, int iterations, bool visualize){
@@ -237,14 +269,14 @@ cv::Mat targetTest = tdata->getTrainResponses();
 // file.close();
 
 meanStdDev emptyMeanStdDev, trainedMeanStdDev, testedMeanStdDev;
-emptyMeanStdDev.stdDev = -1;
+//emptyMeanStdDev.stdDev[0] = empty;
 trainedMeanStdDev = myProcessor.standardize(sampleTrain, emptyMeanStdDev);
-cv::Mat trainStd = trainedMeanStdDev.standardizedData;
 testedMeanStdDev = myProcessor.standardize(sampleTest, trainedMeanStdDev);
+cv::Mat trainStd = trainedMeanStdDev.standardizedData;
 cv::Mat testStd = testedMeanStdDev.standardizedData;
-myToolbox.printtoCSV(testStd);
-//myProcessor.isStandardized(trainStd);
-//myProcessor.isStandardized(testStd);
+myToolbox.printtoCSV(trainStd, "trainStd");
+myProcessor.isStandardized(trainStd, "trainStd", false);
+myProcessor.isStandardized(testStd, "testStd", false);
 std::cout << "Rows :" << trainStd.rows << "  Columns: " << trainStd.cols << std::endl;
 cv::Mat trainStdComp = myProcessor.eigenStuff(trainStd, 50, false);      //5 is optimal since the eValues are 114, 47, 27, 25, 22, 17, 16, 11, 10, 10
 cv::Mat testStdComp = myProcessor.eigenStuff(testStd, 50, false);      //5 is optimal since the eValues are 114, 47, 27, 25, 22, 17, 16, 11, 10, 10
