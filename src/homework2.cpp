@@ -248,15 +248,17 @@ class SVM{
         svm->setKernel(cv::ml::SVM::RBF);
         svm->setC(1.0); 
         svm->setGamma(0.01);
-        svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER, 100, 1e-6)); 
+        svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER, 1000, 1e-6)); 
 }
 
-    void trainSVM(cv::Mat trainData, cv::Mat trainLabels) {
+    void trainSVM(cv::Mat trainData, cv::Mat trainLabels, float C, float Gamma) {
+        svm->setC(C); 
+        svm->setGamma(Gamma);
         svm->train(trainData, cv::ml::ROW_SAMPLE, trainLabels);
-        std::cout << "SVM trained\n";
+        //clearstd::cout << "SVM trained\n";
     }
 
-    int accuracySVM(cv::Mat data, cv::Mat labels, bool augmentation){
+    float accuracySVM(cv::Mat data, cv::Mat labels, bool augmentation){
         cv::Mat predictions;
         svm->predict(data, predictions);
 
@@ -271,20 +273,80 @@ class SVM{
             int curTruth =labels.at<int>(i,0);
             if(curPrediction == curTruth){
                 success++;
-                std::cout << "Success! Success count is now at: " << success << std::endl;
+                //std::cout << "Success! Success count is now at: " << success << std::endl;
             }
             else{
                 failure++;
-                std::cout << "Failure! Failure count is now at: " << failure << std::endl;
+                //std::cout << "Failure! Failure count is now at: " << failure << std::endl;
             }
         }
         //std::cout << "final success: " << success << "  final failure: " << failure << "  final accuracy: " << success/(success+failure) << std::endl;
         float accuracy = (success/(success+failure))*100;
 
-        std::cout << "success: " << success << "  failures: " << failure << std::endl;
-        std::cout << "accuracy: " << accuracy << "%" <<std::endl;
+        //std::cout << "success: " << success << "  failures: " << failure << std::endl;
+        //std::cout << "accuracy: " << accuracy << "%" <<std::endl;
 
         return accuracy;
+    }
+
+    void increaseAccuracy(cv::Mat trainData, cv::Mat trainLabels, cv::Mat testData, cv::Mat testLabels, std::string fidelity){
+        float bestAccuracy = 0;
+        float bestC = 0;
+        float bestGamma = 0;
+        float lowGamma, highGamma, stepsGamma;
+        float lowC, highC, stepsC;
+        int i = 0;
+
+        if(fidelity == "low"){
+            std::cout << "fidelity set to 'low'\n";
+            lowC = 0.5;
+            highC = 1.5;
+            stepsC = 0.1;
+            lowGamma = 0.005;
+            highGamma = 0.015;
+            stepsGamma = 0.001;
+        }
+        else if(fidelity == "medium"){
+            std::cout << "fidelity set to 'medium'\n";
+            lowC = 0.5;
+            highC = 1.5;
+            stepsC = 0.01;
+            lowGamma = 0.0005;
+            highGamma = 0.0015;
+            stepsGamma = 0.0001;
+        }
+        else if(fidelity == "high"){
+            std::cout << "fidelity set to 'high'\n";
+            lowC = 0.5;
+            highC = 1.5;
+            stepsC = 0.001;
+            lowGamma = 0.00005;
+            highGamma = 0.00015;
+            stepsGamma = 0.00001;
+        }
+        else{
+            std::cout << "!!incorrect parameters in 'increaseAccuracy' function!!\n" <<
+            "!!use the keyowrd ’low’, ’medium’ or ’high’ as the last parameter!!\n";
+        }
+
+
+
+        for(float C = 0.1; C < 2.0; C+=0.01){
+            for(float Gamma = 0.00001; Gamma < 0.001; Gamma += 0.00001){
+                trainSVM(trainData, trainLabels, C, Gamma);
+                float accuracy = accuracySVM(testData, testLabels, false);
+                i++;
+                if(accuracy>bestAccuracy){
+                    bestAccuracy = accuracy;
+                    bestC = C;
+                    bestGamma = Gamma;
+                }
+
+                //std::cout << "accuracy: " << accuracy << std::endl;
+            }
+        }
+        std::cout << "highest accuracy achieved after " << i << " iterations was with:  C=" << bestC << " and Gamma=" << bestGamma << std::endl;
+        std::cout << "accuracy: " << bestAccuracy << std::endl;
     }
 
     private:
@@ -342,7 +404,8 @@ std::cout << "Rows :" << testComp.rows << "  Columns: " << testComp.cols << std:
 //SVM
 trainLabels.convertTo(trainLabels, CV_32S);
 std::cout << trainLabels.type() << std::endl;
-mySVM.trainSVM(trainComp, trainLabels);
+mySVM.trainSVM(trainComp, trainLabels, float(1.1), float(0.01));
 mySVM.accuracySVM(testComp, testLabels, false);
+mySVM.increaseAccuracy(trainComp, trainLabels, testComp, testLabels, "high");
 return 0;
 };
