@@ -160,7 +160,7 @@ meanStdDev standardize(cv::Mat data, meanStdDev prevMeanStdDev){
         stdDevVec = prevMeanStdDev.stdDev;
     }
 
-    for(int i = 1; i < data.cols; i++){
+    for(int i = 0; i < data.cols; i++){
         cv::Mat curCol = data.col(i);
 
         if(prevMeanStdDev.stdDev.empty()){
@@ -204,28 +204,29 @@ void isStandardized(cv::Mat data, std::string name, bool advancedAnalysis){
             std::cout << "Line" << i << ":  mean=" << mean[0] << "  stdDev=" << stdDev[0] << std::endl;
         }
     }
-    std::cout << "after standardizing there are " << standardizedMean << "/" << data.cols << " lines with a standardized mean\n"
-    "and " << standardizedStdDev << "/" << data.cols << " lines with a standardized standard deviation in the " << name << " dataset\n\n";
+    std::cout << "after standardizing there are " << standardizedMean << "/" << data.cols << " lines with a mean of 1\n"
+    "and " << standardizedStdDev << "/" << data.cols << " lines with a standard deviation of 0 in the " << name << " dataset\n\n";
 }
 
 cv::Mat eigenStuff(cv::Mat data, int iterations, bool visualize){
     //first for displaying siginficance
-    int maxDim = 60;
+    int maxDim = 100;
     cv::PCA pca(data, cv::Mat(), CV_PCA_DATA_AS_ROW, maxDim);
     cv::Mat mean = pca.mean;
     cv::Mat eigenValue = pca.eigenvalues;
     cv::Mat eigenVector = pca.eigenvectors;
-
+    std::cout << eigenValue.rows << std::endl;
     //std::cout << eigenValue;
 
     //calculate significance
     cv::Mat significance;
-    float sum = 0;
+    double sum = 0;
     float sumSignificance = 0;
     for(int i = 0; i < eigenValue.rows; i++){
-        sum += eigenValue.at<float>(i,1);
+        sum += eigenValue.at<float>(i,0);
     }
     for(int i = 0; i < eigenValue.rows; i++){
+        //std::cout << "eigenValue: " << eigenValue.at<float>(i,0) << "  sum: " << sum << std::endl;
         sumSignificance += (eigenValue.at<float>(i,0)/sum)*100;
         if(visualize){std::cout << "significance at " << i+1 << " dimensions = " << sumSignificance << "% compared to " << maxDim << " dimensions\n";
         if(i == iterations - 1){ std::cout << "--------------------------------------------------------------------\n";}}
@@ -282,12 +283,12 @@ trainedMeanStdDev = myProcessor.standardize(sampleTrain, emptyMeanStdDev);
 testedMeanStdDev = myProcessor.standardize(sampleTest, trainedMeanStdDev);
 cv::Mat trainStd = trainedMeanStdDev.standardizedData;
 cv::Mat testStd = testedMeanStdDev.standardizedData;
-myProcessor.isStandardized(trainStd, "trainStd", false);
-myProcessor.isStandardized(testStd, "testStd", false);
+myProcessor.isStandardized(trainStd, "trainStd", true);
+myProcessor.isStandardized(testStd, "testStd", true);
 myToolbox.printtoCSV(trainStd, "trainStd");
 std::cout << "Rows :" << trainStd.rows << "  Columns: " << trainStd.cols << std::endl;
-cv::Mat trainStdComp = myProcessor.eigenStuff(trainStd, 50, true);      //5 is optimal since the eValues are 114, 47, 27, 25, 22, 17, 16, 11, 10, 10
-cv::Mat testStdComp = myProcessor.eigenStuff(testStd, 50, true);      //5 is optimal since the eValues are 114, 47, 27, 25, 22, 17, 16, 11, 10, 10
+cv::Mat trainStdComp = myProcessor.eigenStuff(trainStd, 45, false);      //5 is optimal since the eValues are 114, 47, 27, 25, 22, 17, 16, 11, 10, 10
+cv::Mat testStdComp = myProcessor.eigenStuff(testStd, 45, false);      //5 is optimal since the eValues are 114, 47, 27, 25, 22, 17, 16, 11, 10, 10
 std::cout << "Rows :" << trainStdComp.rows << "  Columns: " << trainStdComp.cols << std::endl;
 
 return 0;
