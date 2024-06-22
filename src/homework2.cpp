@@ -147,67 +147,67 @@ class extractor{
 };
 
 class processor{
-public:
-processor(){std::cout << "processor started" << std::endl;}
+    public:
+    processor(){std::cout << "processor started" << std::endl;}
 
-meanStdDev standardize(cv::Mat data, meanStdDev prevMeanStdDev){
-    std::vector<float> meanVec(data.cols, -1.0f);
-    std::vector<float> stdDevVec(data.cols, -1.0f);
-    cv::Scalar newMean, newStdDev;
-    meanStdDev returnMsg;
+    meanStdDev standardize(cv::Mat data, meanStdDev prevMeanStdDev){
+        std::vector<float> meanVec(data.cols, -1.0f);
+        std::vector<float> stdDevVec(data.cols, -1.0f);
+        cv::Scalar newMean, newStdDev;
+        meanStdDev returnMsg;
 
-    if (!prevMeanStdDev.mean.empty() && !prevMeanStdDev.stdDev.empty()) {
-        meanVec = prevMeanStdDev.mean;
-        stdDevVec = prevMeanStdDev.stdDev;
-    }
+        if (!prevMeanStdDev.mean.empty() && !prevMeanStdDev.stdDev.empty()) {
+            meanVec = prevMeanStdDev.mean;
+            stdDevVec = prevMeanStdDev.stdDev;
+        }
 
-    for(int i = 0; i < data.cols; i++){
-        cv::Mat curCol = data.col(i);
+        for(int i = 0; i < data.cols; i++){
+            cv::Mat curCol = data.col(i);
 
-        if(prevMeanStdDev.stdDev.empty()){
-            stdDevVec[i] = newStdDev[0];    //prov
-            cv::meanStdDev(curCol, newMean, newStdDev);
-            if(newStdDev[0] < 1e-6){
-                newStdDev[0] = 1e-6;
+            if(prevMeanStdDev.stdDev.empty()){
+                stdDevVec[i] = newStdDev[0];    //prov
+                cv::meanStdDev(curCol, newMean, newStdDev);
+                if(newStdDev[0] < 1e-6){
+                    newStdDev[0] = 1e-6;
+                }
+                //std::cout << "newMean: " << newMean[0] << "  newStdDev: " << newStdDev[0] << std::endl;
+                meanVec[i] = newMean[0];
+                stdDevVec[i] = newStdDev[0];
+                //std::cout << i <<" newMean " << meanVec[411] << std::endl; 
+            //std::cout << std::endl << meanVec.size() << std::endl << std::endl;
             }
-            //std::cout << "newMean: " << newMean[0] << "  newStdDev: " << newStdDev[0] << std::endl;
-            meanVec[i] = newMean[0];
-            stdDevVec[i] = newStdDev[0];
-            //std::cout << i <<" newMean " << meanVec[411] << std::endl; 
-        //std::cout << std::endl << meanVec.size() << std::endl << std::endl;
+            else{
+                //std::cout << "already predefined mean/stdDev}\n";
+            }
+            //calculate standardization
+            curCol = (curCol - meanVec[i]) / stdDevVec[i];
+            data.col(i) = curCol;
         }
-        else{
-            //std::cout << "already predefined mean/stdDev}\n";
-        }
-        //calculate standardization
-        curCol = (curCol - meanVec[i]) / stdDevVec[i];
-        data.col(i) = curCol;
+        returnMsg.standardizedData = data;
+        returnMsg.mean = meanVec;
+        returnMsg.stdDev = stdDevVec;
+        //std::cout << "returnMsg has the size: " << meanVec.size() << std::endl;
+        // for(int i = 0; i < meanVec.size(); i++){
+        //     std::cout << meanVec[i] << std::endl;
+        // }
+        std::cout << "standardisation finished\n";
+        return returnMsg;
     }
-    returnMsg.standardizedData = data;
-    returnMsg.mean = meanVec;
-    returnMsg.stdDev = stdDevVec;
-    //std::cout << "returnMsg has the size: " << meanVec.size() << std::endl;
-    // for(int i = 0; i < meanVec.size(); i++){
-    //     std::cout << meanVec[i] << std::endl;
-    // }
-    std::cout << "standardisation finished\n";
-    return returnMsg;
-}
-void isStandardized(cv::Mat data, std::string name, bool advancedAnalysis){
-    int standardizedMean = 0, standardizedStdDev = 0, NOTstandardizedMean = 0, NOTstandardizedStdDev = 0;
-    for(int i = 0; i < data.cols; i++){
-        cv::Scalar mean, stdDev;
-        cv::meanStdDev(data.col(i), mean, stdDev);
-        //std::cout << "the array currently has a mean of: " << mean << "  and a standard deviation of: " << stdDev << std::endl;
-        (mean[0] < 1e-4) ? (standardizedMean++, 0) : (NOTstandardizedMean++, 1);
-        ((stdDev[0] < 1.1 && stdDev[0] > 0.9) || stdDev[0] == 0) ? (standardizedStdDev++, 0) : (NOTstandardizedStdDev++, 1);
-        if(advancedAnalysis){
-            std::cout << "Line" << i << ":  mean=" << mean[0] << "  stdDev=" << stdDev[0] << std::endl;
+    void isStandardized(cv::Mat data, std::string name, bool advancedAnalysis){
+        int standardizedMean = 0, standardizedStdDev = 0, NOTstandardizedMean = 0, NOTstandardizedStdDev = 0;
+        for(int i = 0; i < data.cols; i++){
+            cv::Scalar mean, stdDev;
+            cv::meanStdDev(data.col(i), mean, stdDev);
+            //std::cout << "the array currently has a mean of: " << mean << "  and a standard deviation of: " << stdDev << std::endl;
+            (mean[0] < 1e-4) ? (standardizedMean++, 0) : (NOTstandardizedMean++, 1);
+            ((stdDev[0] < 1.1 && stdDev[0] > 0.9) || stdDev[0] == 0) ? (standardizedStdDev++, 0) : (NOTstandardizedStdDev++, 1);
+            if(advancedAnalysis){
+                std::cout << "Line" << i << ":  mean=" << mean[0] << "  stdDev=" << stdDev[0] << std::endl;
+            }
         }
+        std::cout << "after standardizing there are " << standardizedMean << "/" << data.cols << " lines with a mean of 1\n"
+        "and " << standardizedStdDev << "/" << data.cols << " lines with a standard deviation of 0 in the " << name << " dataset\n\n";
     }
-    std::cout << "after standardizing there are " << standardizedMean << "/" << data.cols << " lines with a mean of 1\n"
-    "and " << standardizedStdDev << "/" << data.cols << " lines with a standard deviation of 0 in the " << name << " dataset\n\n";
-}
 
 };
 
@@ -256,8 +256,33 @@ class SVM{
         std::cout << "SVM trained\n";
     }
 
-    int accuracySVM(){
-        float accuracy = 0;
+    int accuracySVM(cv::Mat data, cv::Mat labels, bool augmentation){
+        cv::Mat predictions;
+        svm->predict(data, predictions);
+
+        predictions.convertTo(predictions, CV_32S);
+        labels.convertTo(labels, CV_32S);
+        float success = 0;
+        float failure = 0;
+
+        for(int i = 0; i < predictions.rows; i++){
+            if(augmentation){std::cout << i << "  prediction: " << predictions.at<int>(i, 0) << "  reality: " << labels.at<int>(i,0) << std::endl;}
+            int curPrediction =predictions.at<int>(i, 0);
+            int curTruth =labels.at<int>(i,0);
+            if(curPrediction == curTruth){
+                success++;
+                std::cout << "Success! Success count is now at: " << success << std::endl;
+            }
+            else{
+                failure++;
+                std::cout << "Failure! Failure count is now at: " << failure << std::endl;
+            }
+        }
+        //std::cout << "final success: " << success << "  final failure: " << failure << "  final accuracy: " << success/(success+failure) << std::endl;
+        float accuracy = (success/(success+failure))*100;
+
+        std::cout << "success: " << success << "  failures: " << failure << std::endl;
+        std::cout << "accuracy: " << accuracy << "%" <<std::endl;
 
         return accuracy;
     }
@@ -286,7 +311,8 @@ std::string path = myToolbox.combine2csv(dataDirectory, number1, number2, "Train
 cv::Ptr<cv::ml::TrainData> tdata = cv::ml::TrainData::loadFromCSV( path, 0, 0, 1 ); 
 cv::Mat trainData = tdata->getTrainSamples();                                                        
 cv::Mat trainLabels = tdata->getTrainResponses();
-std::cout << trainLabels  << std::endl;
+int labelType = trainLabels.type() & CV_MAT_DEPTH_MASK;
+std::cout << labelType  << std::endl;
 
 myExtractor.extract2numbers(number1, number2, amountTrain, amountTest, emnistPath, dataDirectory);
 path = myToolbox.combine2csv(dataDirectory, number1, number2, "Test");
@@ -314,7 +340,9 @@ std::cout << "Rows :" << trainComp.rows << "  Columns: " << trainComp.cols << st
 std::cout << "Rows :" << testComp.rows << "  Columns: " << testComp.cols << std::endl;
 
 //SVM
+trainLabels.convertTo(trainLabels, CV_32S);
 std::cout << trainLabels.type() << std::endl;
 mySVM.trainSVM(trainComp, trainLabels);
+mySVM.accuracySVM(testComp, testLabels, false);
 return 0;
 };
