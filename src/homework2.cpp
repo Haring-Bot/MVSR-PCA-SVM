@@ -248,7 +248,7 @@ class SVM{
         svm->setKernel(cv::ml::SVM::RBF);
         svm->setC(1.0); 
         svm->setGamma(0.01);
-        svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER, 1000, 1e-6)); 
+        svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER, 10000, 1e-6)); 
 }
 
     void trainSVM(cv::Mat trainData, cv::Mat trainLabels, float C, float Gamma) {
@@ -295,7 +295,6 @@ class SVM{
         float bestGamma = 0;
         float lowGamma, highGamma, stepsGamma;
         float lowC, highC, stepsC;
-        int i = 0;
 
         if(fidelity == "low"){
             std::cout << "fidelity set to 'low'\n";
@@ -324,18 +323,36 @@ class SVM{
             highGamma = 0.00015;
             stepsGamma = 0.00001;
         }
+        else if(fidelity == "crazy"){
+            std::cout << "fidelity set to 'crazy'\n";
+            lowC = 0.1;
+            highC = 2.0;
+            stepsC = 0.0001;
+            lowGamma = 0.00001;
+            highGamma = 1.0;
+            stepsGamma = 0.00001;
+        }
         else{
             std::cout << "!!incorrect parameters in 'increaseAccuracy' function!!\n" <<
             "!!use the keyowrd ’low’, ’medium’ or ’high’ as the last parameter!!\n";
         }
 
+        double time = ((highC-lowC)/stepsC) * ((highGamma-lowGamma)/stepsGamma);
+        double lastTime = 0;
+        double step = time/100;
+        int percent = 0;
 
+        long i = 0;
 
-        for(float C = 0.1; C < 2.0; C+=0.01){
-            for(float Gamma = 0.00001; Gamma < 0.001; Gamma += 0.00001){
+        for(float C = lowC; C < highC; C+=stepsC){
+            for(float Gamma = lowGamma; Gamma < highGamma; Gamma += stepsGamma){
                 trainSVM(trainData, trainLabels, C, Gamma);
                 float accuracy = accuracySVM(testData, testLabels, false);
                 i++;
+                if((i - lastTime) > step){
+                    int progress = i*100/time;
+                    std::cout << "calculating...    current progress: " << progress << "%\n";
+                }
                 if(accuracy>bestAccuracy){
                     bestAccuracy = accuracy;
                     bestC = C;
@@ -374,7 +391,6 @@ cv::Ptr<cv::ml::TrainData> tdata = cv::ml::TrainData::loadFromCSV( path, 0, 0, 1
 cv::Mat trainData = tdata->getTrainSamples();                                                        
 cv::Mat trainLabels = tdata->getTrainResponses();
 int labelType = trainLabels.type() & CV_MAT_DEPTH_MASK;
-std::cout << labelType  << std::endl;
 
 myExtractor.extract2numbers(number1, number2, amountTrain, amountTest, emnistPath, dataDirectory);
 path = myToolbox.combine2csv(dataDirectory, number1, number2, "Test");
@@ -403,9 +419,8 @@ std::cout << "Rows :" << testComp.rows << "  Columns: " << testComp.cols << std:
 
 //SVM
 trainLabels.convertTo(trainLabels, CV_32S);
-std::cout << trainLabels.type() << std::endl;
 mySVM.trainSVM(trainComp, trainLabels, float(1.1), float(0.01));
 mySVM.accuracySVM(testComp, testLabels, false);
-mySVM.increaseAccuracy(trainComp, trainLabels, testComp, testLabels, "high");
+mySVM.increaseAccuracy(trainComp, trainLabels, testComp, testLabels, "high");    //low, medium or high fidelity
 return 0;
 };
