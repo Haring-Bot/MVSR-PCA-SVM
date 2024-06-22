@@ -301,35 +301,35 @@ class SVM{
             lowC = 0.5;
             highC = 1.5;
             stepsC = 0.1;
-            lowGamma = 0.005;
-            highGamma = 0.015;
-            stepsGamma = 0.001;
+            lowGamma = 0.01;
+            highGamma = 0.1;
+            stepsGamma = 0.01;
         }
         else if(fidelity == "medium"){
             std::cout << "fidelity set to 'medium'\n";
-            lowC = 0.5;
-            highC = 1.5;
+            lowC = 0.1;
+            highC = 1.9;
             stepsC = 0.01;
-            lowGamma = 0.0005;
-            highGamma = 0.0015;
-            stepsGamma = 0.0001;
+            lowGamma = 0.001;
+            highGamma = 0.1;
+            stepsGamma = 0.001;
         }
         else if(fidelity == "high"){
             std::cout << "fidelity set to 'high'\n";
-            lowC = 0.5;
-            highC = 1.5;
+            lowC = 0.1;
+            highC = 1.9;
             stepsC = 0.001;
-            lowGamma = 0.00005;
-            highGamma = 0.00015;
-            stepsGamma = 0.00001;
+            lowGamma = 0.0001;
+            highGamma = 0.1;
+            stepsGamma = 0.0001;
         }
         else if(fidelity == "crazy"){
             std::cout << "fidelity set to 'crazy'\n";
             lowC = 0.1;
-            highC = 2.0;
+            highC = 1.9;
             stepsC = 0.0001;
             lowGamma = 0.00001;
-            highGamma = 1.0;
+            highGamma = 0.1;
             stepsGamma = 0.00001;
         }
         else{
@@ -338,20 +338,21 @@ class SVM{
         }
 
         double time = ((highC-lowC)/stepsC) * ((highGamma-lowGamma)/stepsGamma);
-        double lastTime = 0;
+        double lastI = 0;
         double step = time/100;
         int percent = 0;
 
-        long i = 0;
+        double i = 0;
 
         for(float C = lowC; C < highC; C+=stepsC){
             for(float Gamma = lowGamma; Gamma < highGamma; Gamma += stepsGamma){
                 trainSVM(trainData, trainLabels, C, Gamma);
                 float accuracy = accuracySVM(testData, testLabels, false);
                 i++;
-                if((i - lastTime) > step){
+                if((i - lastI) > step){
                     int progress = i*100/time;
                     std::cout << "calculating...    current progress: " << progress << "%\n";
+                    lastI = i;
                 }
                 if(accuracy>bestAccuracy){
                     bestAccuracy = accuracy;
