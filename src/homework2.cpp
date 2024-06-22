@@ -208,44 +208,34 @@ void isStandardized(cv::Mat data, std::string name, bool advancedAnalysis){
     "and " << standardizedStdDev << "/" << data.cols << " lines with a standard deviation of 0 in the " << name << " dataset\n\n";
 }
 
-cv::Mat eigenStuff(cv::Mat data, int iterations, bool visualize){
-    //first for displaying siginficance
-    int maxDim = 100;
-    cv::PCA pca(data, cv::Mat(), CV_PCA_DATA_AS_ROW, maxDim);
-    cv::Mat mean = pca.mean;
-    cv::Mat eigenValue = pca.eigenvalues;
-    cv::Mat eigenVector = pca.eigenvectors;
-    std::cout << eigenValue.rows << std::endl;
-    //std::cout << eigenValue;
+};
 
-    //calculate significance
-    cv::Mat significance;
-    double sum = 0;
-    float sumSignificance = 0;
-    for(int i = 0; i < eigenValue.rows; i++){
-        sum += eigenValue.at<float>(i,0);
+class PCA{
+    public:
+    PCA(){}
+
+    cv::PCA fitPCA(cv::Mat input, float goal){
+        std::cout << "the goal is an accuracy of " << goal << "% compared to " << input.rows << " dimensions\n";
+        cv::PCA pca(input, cv::Mat(), CV_PCA_DATA_AS_ROW, input.rows);
+        float sum = cv::sum(pca.eigenvalues.col(0))[0];
+        float sumSignificance = 0;
+        int dimensions = input.rows;
+        for(int i = 0; i < pca.eigenvalues.rows; i++){
+            sumSignificance += (pca.eigenvalues.at<float>(i,0));
+            if((sumSignificance/sum) > (goal/100)){
+                std::cout << "an accuracy of more than " << goal << "% can be achieved with " << i << " dimensions\n";
+                dimensions = i;
+                break;
+            }
+        }
+        cv::PCA pca2(input, cv::Mat(), CV_PCA_DATA_AS_ROW, dimensions);
+        return pca2;
     }
-    for(int i = 0; i < eigenValue.rows; i++){
-        //std::cout << "eigenValue: " << eigenValue.at<float>(i,0) << "  sum: " << sum << std::endl;
-        sumSignificance += (eigenValue.at<float>(i,0)/sum)*100;
-        if(visualize){std::cout << "significance at " << i+1 << " dimensions = " << sumSignificance << "% compared to " << maxDim << " dimensions\n";
-        if(i == iterations - 1){ std::cout << "--------------------------------------------------------------------\n";}}
+
+    cv::Mat transformPCA(cv::Mat input, cv::PCA pca){
+        cv::Mat output = pca.project(input);
+        return output;
     }
-
-    //std::cout << "with the current level of dimensions we achieve " << sumSignificance << "% in comparison to 10 dimensions \n";
-
-    //second for calculating with right values
-    pca(data, cv::Mat(), CV_PCA_DATA_AS_ROW, iterations);
-    mean = pca.mean;
-    eigenValue = pca.eigenvalues;
-    eigenVector = pca.eigenvectors;
-
-    //apply PCA
-    data = eigenVector.rowRange(0, iterations)*data.t();
-
-    return data;
-}
-
 };
 
 int main(){
@@ -253,6 +243,7 @@ int main(){
 toolbox myToolbox;
 extractor myExtractor;
 processor myProcessor;
+PCA myPCA;
 std::string emnistPath = "../data/emnistShuffled.csv";
 std::string dataDirectory = "../data/";
 int number1 = 14;   //N
@@ -260,7 +251,7 @@ int number2 = 7;    //G
 int amountTrain = 1000;
 int amountTest = 5000;
 
-//process
+//prepare data
 myExtractor.extract2numbers(number1, number2, 0, amountTrain, emnistPath, dataDirectory);
 std::string path = myToolbox.combine2csv(dataDirectory, number1, number2, "Train");
 cv::Ptr< cv::ml::TrainData > tdata = cv::ml::TrainData::loadFromCSV( path, 0, 0, 1 ); // First col is the target as a float
@@ -272,12 +263,9 @@ path = myToolbox.combine2csv(dataDirectory, number1, number2, "Test");
 tdata = cv::ml::TrainData::loadFromCSV( path, 0, 0, 1 ); // First col is the target as a float
 cv::Mat sampleTest = tdata->getTrainSamples();                                                        // Get design matrix
 cv::Mat targetTest = tdata->getTrainResponses();
-// std::ofstream file("debug.txt");
-// file << cv::format(sample, cv::Formatter::FMT_CSV);
-// file.close();
 
+//Standardize
 meanStdDev emptyMeanStdDev, trainedMeanStdDev, testedMeanStdDev;
-//emptyMeanStdDev.stdDev[0] = empty;
 myToolbox.printtoCSV(sampleTrain, "beforeTrainStd");
 trainedMeanStdDev = myProcessor.standardize(sampleTrain, emptyMeanStdDev);
 testedMeanStdDev = myProcessor.standardize(sampleTest, trainedMeanStdDev);
@@ -287,9 +275,13 @@ myProcessor.isStandardized(trainStd, "trainStd", true);
 myProcessor.isStandardized(testStd, "testStd", true);
 myToolbox.printtoCSV(trainStd, "trainStd");
 std::cout << "Rows :" << trainStd.rows << "  Columns: " << trainStd.cols << std::endl;
-cv::Mat trainStdComp = myProcessor.eigenStuff(trainStd, 45, false);      //5 is optimal since the eValues are 114, 47, 27, 25, 22, 17, 16, 11, 10, 10
-cv::Mat testStdComp = myProcessor.eigenStuff(testStd, 45, false);      //5 is optimal since the eValues are 114, 47, 27, 25, 22, 17, 16, 11, 10, 10
-std::cout << "Rows :" << trainStdComp.rows << "  Columns: " << trainStdComp.cols << std::endl;
+
+//PCA
+cv::PCA pca = myPCA.fitPCA(trainStd, 95);
+cv::Mat trainComp = myPCA.transformPCA(trainStd, pca);
+cv::Mat testComp = myPCA.transformPCA(testStd, pca);
+std::cout << "Rows :" << trainComp.rows << "  Columns: " << trainComp.cols << std::endl;
+std::cout << "Rows :" << testComp.rows << "  Columns: " << testComp.cols << std::endl;
 
 return 0;
-}
+};
