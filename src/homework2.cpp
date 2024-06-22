@@ -143,6 +143,7 @@ class extractor{
         } 
     return fileTrainPath, fileTestPath;
     }
+
 };
 
 class processor{
@@ -238,12 +239,40 @@ class PCA{
     }
 };
 
+class SVM{
+    public:
+    SVM() {
+        std::cout << "initialising SVM\n";
+        svm = cv::ml::SVM::create();
+        svm->setType(cv::ml::SVM::C_SVC);
+        svm->setKernel(cv::ml::SVM::RBF);
+        svm->setC(1.0); 
+        svm->setGamma(0.01);
+        svm->setTermCriteria(cv::TermCriteria(cv::TermCriteria::MAX_ITER, 100, 1e-6)); 
+}
+
+    void trainSVM(cv::Mat trainData, cv::Mat trainLabels) {
+        svm->train(trainData, cv::ml::ROW_SAMPLE, trainLabels);
+        std::cout << "SVM trained\n";
+    }
+
+    int accuracySVM(){
+        float accuracy = 0;
+
+        return accuracy;
+    }
+
+    private:
+    cv::Ptr<cv::ml::SVM> svm;  
+};
+
 int main(){
 //init
 toolbox myToolbox;
 extractor myExtractor;
 processor myProcessor;
 PCA myPCA;
+SVM mySVM;
 std::string emnistPath = "../data/emnistShuffled.csv";
 std::string dataDirectory = "../data/";
 int number1 = 14;   //N
@@ -254,25 +283,26 @@ int amountTest = 5000;
 //prepare data
 myExtractor.extract2numbers(number1, number2, 0, amountTrain, emnistPath, dataDirectory);
 std::string path = myToolbox.combine2csv(dataDirectory, number1, number2, "Train");
-cv::Ptr< cv::ml::TrainData > tdata = cv::ml::TrainData::loadFromCSV( path, 0, 0, 1 ); // First col is the target as a float
-cv::Mat sampleTrain = tdata->getTrainSamples();                                                        // Get design matrix
-cv::Mat targetTrain = tdata->getTrainResponses();
+cv::Ptr<cv::ml::TrainData> tdata = cv::ml::TrainData::loadFromCSV( path, 0, 0, 1 ); 
+cv::Mat trainData = tdata->getTrainSamples();                                                        
+cv::Mat trainLabels = tdata->getTrainResponses();
+std::cout << trainLabels  << std::endl;
 
 myExtractor.extract2numbers(number1, number2, amountTrain, amountTest, emnistPath, dataDirectory);
 path = myToolbox.combine2csv(dataDirectory, number1, number2, "Test");
-tdata = cv::ml::TrainData::loadFromCSV( path, 0, 0, 1 ); // First col is the target as a float
-cv::Mat sampleTest = tdata->getTrainSamples();                                                        // Get design matrix
-cv::Mat targetTest = tdata->getTrainResponses();
+tdata = cv::ml::TrainData::loadFromCSV( path, 0, 0, 1 ); 
+cv::Mat testData = tdata->getTrainSamples();                                                     
+cv::Mat testLabels = tdata->getTrainResponses();
 
 //Standardize
 meanStdDev emptyMeanStdDev, trainedMeanStdDev, testedMeanStdDev;
-myToolbox.printtoCSV(sampleTrain, "beforeTrainStd");
-trainedMeanStdDev = myProcessor.standardize(sampleTrain, emptyMeanStdDev);
-testedMeanStdDev = myProcessor.standardize(sampleTest, trainedMeanStdDev);
+myToolbox.printtoCSV(trainData, "beforeTrainStd");
+trainedMeanStdDev = myProcessor.standardize(trainData, emptyMeanStdDev);
+testedMeanStdDev = myProcessor.standardize(testData, trainedMeanStdDev);
 cv::Mat trainStd = trainedMeanStdDev.standardizedData;
 cv::Mat testStd = testedMeanStdDev.standardizedData;
-myProcessor.isStandardized(trainStd, "trainStd", true);
-myProcessor.isStandardized(testStd, "testStd", true);
+myProcessor.isStandardized(trainStd, "trainStd", false);
+myProcessor.isStandardized(testStd, "testStd", false);
 myToolbox.printtoCSV(trainStd, "trainStd");
 std::cout << "Rows :" << trainStd.rows << "  Columns: " << trainStd.cols << std::endl;
 
@@ -283,5 +313,8 @@ cv::Mat testComp = myPCA.transformPCA(testStd, pca);
 std::cout << "Rows :" << trainComp.rows << "  Columns: " << trainComp.cols << std::endl;
 std::cout << "Rows :" << testComp.rows << "  Columns: " << testComp.cols << std::endl;
 
+//SVM
+std::cout << trainLabels.type() << std::endl;
+mySVM.trainSVM(trainComp, trainLabels);
 return 0;
 };
